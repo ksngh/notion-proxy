@@ -6,9 +6,115 @@ export default async function handler(req, res) {
         category,
         difficulty,
         status,
-        studyDate,  // ISO8601 형식 날짜 문자열 (선택)
-        notes       // 부가 설명 (string)
+        studyDate,
+        notes
     } = req.body;
+
+    function parseContentToNotionBlocks(content) {
+        const lines = content.split('\n');
+        const blocks = [];
+        let inCodeBlock = false;
+        let codeLines = [];
+        let codeLang = "plain text";
+
+        for (const line of lines) {
+            if (line.startsWith('```')) {
+                if (!inCodeBlock) {
+                    inCodeBlock = true;
+                    codeLang = line.replace('```', '').trim() || 'plain text';
+                } else {
+                    inCodeBlock = false;
+                    blocks.push({
+                        object: "block",
+                        type: "code",
+                        code: {
+                            language: codeLang,
+                            rich_text: [
+                                {
+                                    type: "text",
+                                    text: { content: codeLines.join('\n') }
+                                }
+                            ]
+                        }
+                    });
+                    codeLines = [];
+                }
+            } else if (inCodeBlock) {
+                codeLines.push(line);
+            } else if (line.startsWith('### ')) {
+                blocks.push({
+                    object: "block",
+                    type: "heading_3",
+                    heading_3: {
+                        rich_text: [
+                            {
+                                type: "text",
+                                text: { content: line.replace('### ', '') }
+                            }
+                        ]
+                    }
+                });
+            } else if (line.startsWith('## ')) {
+                blocks.push({
+                    object: "block",
+                    type: "heading_2",
+                    heading_2: {
+                        rich_text: [
+                            {
+                                type: "text",
+                                text: { content: line.replace('## ', '') }
+                            }
+                        ]
+                    }
+                });
+            } else if (line.startsWith('# ')) {
+                blocks.push({
+                    object: "block",
+                    type: "heading_1",
+                    heading_1: {
+                        rich_text: [
+                            {
+                                type: "text",
+                                text: { content: line.replace('# ', '') }
+                            }
+                        ]
+                    }
+                });
+            } else if (line.startsWith('- ')) {
+                blocks.push({
+                    object: "block",
+                    type: "bulleted_list_item",
+                    bulleted_list_item: {
+                        rich_text: [
+                            {
+                                type: "text",
+                                text: { content: line.replace('- ', '') }
+                            }
+                        ]
+                    }
+                });
+            } else if (line.trim() === '') {
+                continue; // 빈 줄 무시
+            } else {
+                blocks.push({
+                    object: "block",
+                    type: "paragraph",
+                    paragraph: {
+                        rich_text: [
+                            {
+                                type: "text",
+                                text: { content: line }
+                            }
+                        ]
+                    }
+                });
+            }
+        }
+
+        return blocks;
+    }
+
+    const childrenBlocks = parseContentToNotionBlocks(content);
 
     const response = await fetch("https://api.notion.com/v1/pages", {
         method: "POST",
@@ -61,21 +167,7 @@ export default async function handler(req, res) {
                     ]
                 }
             },
-            children: [
-                {
-                    object: "block",
-                    type: "paragraph",
-                    paragraph: {
-                        rich_text: [
-                            {
-                                text: {
-                                    content: content
-                                }
-                            }
-                        ]
-                    }
-                }
-            ]
+            children: childrenBlocks
         })
     });
 
