@@ -1,0 +1,5 @@
+{
+  "env": {
+    "NOTION_SECRET": "@notion-secret"
+  }
+}
