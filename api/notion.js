@@ -10,6 +10,23 @@ export default async function handler(req, res) {
         notes
     } = req.body;
 
+    // ? 텍스트 블록용 헬퍼 함수
+    const toRichText = (text) => ({
+        type: "text",
+        text: { content: text },
+        annotations: {
+            bold: false,
+            italic: false,
+            strikethrough: false,
+            underline: false,
+            code: false,
+            color: "default"
+        },
+        plain_text: text,
+        href: null
+    });
+
+    // ? content 파싱 함수
     function parseContentToNotionBlocks(content) {
         const lines = content.split('\n');
         const blocks = [];
@@ -29,12 +46,7 @@ export default async function handler(req, res) {
                         type: "code",
                         code: {
                             language: codeLang,
-                            rich_text: [
-                                {
-                                    type: "text",
-                                    text: { content: codeLines.join('\n') }
-                                }
-                            ]
+                            rich_text: [toRichText(codeLines.join('\n'))]
                         }
                     });
                     codeLines = [];
@@ -46,12 +58,7 @@ export default async function handler(req, res) {
                     object: "block",
                     type: "heading_3",
                     heading_3: {
-                        rich_text: [
-                            {
-                                type: "text",
-                                text: { content: line.replace('### ', '') }
-                            }
-                        ]
+                        rich_text: [toRichText(line.replace('### ', ''))]
                     }
                 });
             } else if (line.startsWith('## ')) {
@@ -59,12 +66,7 @@ export default async function handler(req, res) {
                     object: "block",
                     type: "heading_2",
                     heading_2: {
-                        rich_text: [
-                            {
-                                type: "text",
-                                text: { content: line.replace('## ', '') }
-                            }
-                        ]
+                        rich_text: [toRichText(line.replace('## ', ''))]
                     }
                 });
             } else if (line.startsWith('# ')) {
@@ -72,12 +74,7 @@ export default async function handler(req, res) {
                     object: "block",
                     type: "heading_1",
                     heading_1: {
-                        rich_text: [
-                            {
-                                type: "text",
-                                text: { content: line.replace('# ', '') }
-                            }
-                        ]
+                        rich_text: [toRichText(line.replace('# ', ''))]
                     }
                 });
             } else if (line.startsWith('- ')) {
@@ -85,27 +82,17 @@ export default async function handler(req, res) {
                     object: "block",
                     type: "bulleted_list_item",
                     bulleted_list_item: {
-                        rich_text: [
-                            {
-                                type: "text",
-                                text: { content: line.replace('- ', '') }
-                            }
-                        ]
+                        rich_text: [toRichText(line.replace('- ', ''))]
                     }
                 });
             } else if (line.trim() === '') {
-                continue; // 빈 줄 무시
+                continue;
             } else {
                 blocks.push({
                     object: "block",
                     type: "paragraph",
                     paragraph: {
-                        rich_text: [
-                            {
-                                type: "text",
-                                text: { content: line }
-                            }
-                        ]
+                        rich_text: [toRichText(line)]
                     }
                 });
             }
@@ -129,6 +116,7 @@ export default async function handler(req, res) {
                 Title: {
                     title: [
                         {
+                            type: "text",
                             text: {
                                 content: title
                             }
@@ -160,6 +148,7 @@ export default async function handler(req, res) {
                 Notes: {
                     rich_text: [
                         {
+                            type: "text",
                             text: {
                                 content: notes || ""
                             }
